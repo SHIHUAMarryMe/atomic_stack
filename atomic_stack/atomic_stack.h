@@ -14,6 +14,7 @@ struct Node {
 	std::shared_ptr<Node<T>> next{ nullptr };
 
 	Node() = default;
+	~Node() = default;
 
 	Node(T&& data_)try
 		:data{ std::make_shared<T>(std::move(data_)) },
@@ -29,8 +30,6 @@ struct Node {
 	 catch (const std::bad_alloc& error) {
 		 std::cerr << error.what() << std::endl;
 	 }
-
-	~Node() = default;
 
 	Node(Node<T>&& other)
 		:data{ std::move(other.data) },
@@ -53,7 +52,7 @@ class AtomicStack {
 public:
 
 	AtomicStack() = default;
-	~AtomicStack();
+	~AtomicStack() = default;
 
 	AtomicStack(const AtomicStack<T>& other) = delete;
 	AtomicStack<T>& operator=(const AtomicStack<T>& other) = delete;
@@ -100,11 +99,6 @@ public:
 		new_node->next = (this->head).load();
 
 		while (!(this->head).compare_exchange_strong(new_node->next, new_node));
-	}
-
-	void push(const T& value)noexcept
-	{
-
 	}
 
 private:
