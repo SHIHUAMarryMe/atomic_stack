@@ -4,8 +4,9 @@
 #include <atomic>
 #include <memory>
 
-//defined hzard-pointer!
+
 #include "hzard_pointer.h"
+#include "reclaim_list.h"
 
 //stack的结点.
 template<typename T>
@@ -61,11 +62,11 @@ public:
 
 	std::shared_ptr<T> pop()
 	{
-		//获取当前线程的 HzardPointer;
-		//HzardPointer用于判断是否有其他线程是否在使用这个即将删除的结点.
-		std::atomic<void*>& hd_pointer = getHzardPointerForThisThread();
 
+		std::atomic<void*>& hd_pointer = getHzardPointerForThisThread();
 		Node<T>* old_head{ (this->head).load() }; //std::memory_order_seq_cst
+
+		ManagerList list; 
 
 		do {
 			Node<T>* temp_node{ nullptr };
@@ -73,7 +74,6 @@ public:
 			do {
 				temp_node = old_head;
 
-				//直到将风险指针设为将要被删除的head.
 				hd_pointer.store(static_cast<void*>(temp_node)); //std::memory_order_seq_cst
 				old_head = (this->head).load(); //std::memory_order_seq_cst
 
@@ -82,8 +82,28 @@ public:
 		} while (old_head && !(this->head).compare_exchange_strong(old_head, old_head->next)); //std::memory_order_seq_cst
 
 		hd_pointer.store(nullptr);
+
+		std::shared_ptr<T> node_data{ nullptr };//存放即将被删除的结点中的数据.
+		if (old_head != nullptr) {
+			node_data.swap(old_head->data); //提取出来即将被删除的结点中的数据.
+
+			if (outstandHzardPointer(static_cast<void*>(old_head))) {
+				list.addNodeToList(static_cast<void*>(old_head));
+
+			} else {
+				delete old_head;
+				old_head = nullptr;
+
+			}
+
+			list.deleteNodesNoHzard();
+		}
+
+		return node_data;
 	}
 
+
+	//添加数据到stack中.
 	void push(T&& value)noexcept
 	{
 		Node<T>* new_node{ new Node<int>{std::move(value)} };

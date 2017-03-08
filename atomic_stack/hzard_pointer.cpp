@@ -2,9 +2,10 @@
 
 HzardPointer pointers[maxNumber]{};
 
-HPPointerOwner::HPPointerOwner()try  //注意这里的: try
+HPPointerOwner::HPPointerOwner()try  //try
 	:hp_ptr{ nullptr }
 {
+	//查看存放HzardPointer的数组还有没有空间能够放入新的HzardPointer.
 	for (unsigned int index = 0; index < maxNumber; ++index) {
 
 		//注意这里我们通过默认构造函数构造了一个线程的ID，这个时候该ID不代表任何线程.
@@ -18,11 +19,12 @@ HPPointerOwner::HPPointerOwner()try  //注意这里的: try
 	}
 
 	if (!this->hp_ptr) {
+
 		//如果此时同时运行的线程超过了我们预期的100，没法再设置新的风险指针了那么throw.
 		throw std::runtime_error("bad hzard_pointer!"); //throw
 	}
 
-} catch (const std::runtime_error& error) {  //!!!!
+} catch (const std::runtime_error& error) {  //catch throw
 	std::cerr << error.what() << std::endl;
 }
 

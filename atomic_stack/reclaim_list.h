@@ -2,7 +2,6 @@
 #define RECLAIM_LIST_H
 
 #include <atomic>
-#include <iostream>
 #include <exception>
 
 //defined hzard-pointer
@@ -10,11 +9,14 @@
 
 
 
+//当stack中的一个结点被几个线程使用的时候为了防止该结点被其中的线程给删除
+//因此把该结点放入到 list中.
 struct DataToReclaim { //Node
 	void* data_ptr{ nullptr };
 	DataToReclaim* next{ nullptr };
 
 	DataToReclaim() = default;
+
 	DataToReclaim(void* ptr, DataToReclaim* dtr_ptr = nullptr)
 		:data_ptr{ ptr },
 		next{ dtr_ptr } {}
@@ -32,8 +34,12 @@ struct DataToReclaim { //Node
 
 		this->next = nullptr;
 	}
+
 };
 
+
+//当有结点将要被删除的时候首先检查其他线程是否正在使用该结点
+//如果正在使用那么把结点放入到该list.
 class ManagerList {
 public:
 	ManagerList() = default;
@@ -53,6 +59,7 @@ public:
 		DataToReclaim* node{ new DataToReclaim{data} };
 
 		node->next = (this->head).load();
+
 		//把node设为list的新head.
 		while (!(this->head).compare_exchange_weak(node->next, node)); //std::memory_order_seq_cst
 	}
@@ -83,13 +90,13 @@ private:
 	void deleter()noexcept
 	{
 		DataToReclaim* temp_head{ (this->head).load() };//std::memory_oder_seq_cst
+
 		while (temp_head != nullptr) { 
 			delete temp_head;
 		}
 
 		temp_head = nullptr;
 	}
-
 
 
 	static std::atomic<DataToReclaim*> head;

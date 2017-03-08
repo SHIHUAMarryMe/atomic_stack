@@ -9,7 +9,7 @@
 #include <utility>
 
 class HzardPointer;
-static constexpr unsigned int maxNumber{ 100 };
+constexpr static unsigned int maxNumber{ 100 };
 extern HzardPointer pointers[maxNumber];  //declare!
 
 
@@ -43,6 +43,7 @@ public:
 
 	std::atomic<void*>& getPointer()& noexcept;
 
+	//delete
 	std::atomic<void*>& getPointer()&& noexcept = delete;
 	const std::atomic<void*>& getPointer()const & noexcept = delete;
 	const std::atomic<void*>& getPointer()const && noexcept = delete;
