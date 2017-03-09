@@ -53,12 +53,20 @@ class AtomicStack {
 public:
 
 	AtomicStack() = default;
-	~AtomicStack() = default;
 
 	AtomicStack(const AtomicStack<T>& other) = delete;
 	AtomicStack<T>& operator=(const AtomicStack<T>& other) = delete;
 	//AtomicStack(AtomicStack<T>&& other) = delete;
 	//AtomicStack<T>& operator=(AtomicStack<T>&& other) = delete;
+
+	~AtomicStack()
+	{
+		if ((this->head).load() != nullptr) {
+			delete (this->head).load();
+		}
+
+		(this->head).store(nullptr);
+	}
 
 	std::shared_ptr<T> pop()
 	{
@@ -66,7 +74,7 @@ public:
 		std::atomic<void*>& hd_pointer = getHzardPointerForThisThread();
 		Node<T>* old_head{ (this->head).load() }; //std::memory_order_seq_cst
 
-		ManagerList list; 
+		ManagerList<Ty> list; 
 
 		do {
 			Node<T>* temp_node{ nullptr };

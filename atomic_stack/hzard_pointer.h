@@ -8,9 +8,13 @@
 #include <thread>
 #include <utility>
 
+
 class HzardPointer;
+
 constexpr static unsigned int maxNumber{ 100 };
-extern HzardPointer pointers[maxNumber];  //declare!
+
+extern  HzardPointer pointers[maxNumber];  //declare!
+
 
 
 struct HzardPointer {
@@ -53,15 +57,16 @@ private:
 };
 
 
-static std::atomic<void*>& getHzardPointerForThisThread()noexcept
+std::atomic<void*>& getHzardPointerForThisThread()noexcept
 {
-	thread_local static HPPointerOwner owner{}; //虽然指定了static其实仍然是thread_local起作用.
+	thread_local static HPPointerOwner owner; //虽然指定了static其实仍然是thread_local起作用.
 	return owner.getPointer();
 }
 
 
 //查找 reclaim_list中是否含有该 HzardPointer.
-static bool outstandHzardPointer(void* ptr)noexcept
+template<typename Ty>
+bool outstandHzardPointer(Ty* ptr)noexcept
 {
 	for (unsigned int index = 0; index < maxNumber; ++index) {
 		if (pointers[index].pointer.load() == ptr) { //std::memory_order_seq_cst

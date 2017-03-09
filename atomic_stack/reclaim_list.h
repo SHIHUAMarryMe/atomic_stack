@@ -11,20 +11,21 @@
 
 //当stack中的一个结点被几个线程使用的时候为了防止该结点被其中的线程给删除
 //因此把该结点放入到 list中.
-struct DataToReclaim { //Node
-	void* data_ptr{ nullptr };
-	DataToReclaim* next{ nullptr };
+template<typename Ty>
+struct DataToReclaim {
+	Ty* data_ptr{ nullptr };
+	DataToReclaim<Ty>* next{ nullptr };
 
 	DataToReclaim() = default;
 
-	DataToReclaim(void* ptr, DataToReclaim* dtr_ptr = nullptr)
+	DataToReclaim(Ty* ptr, DataToReclaim* dtr_ptr = nullptr)
 		:data_ptr{ ptr },
 		next{ dtr_ptr } {}
 
-	DataToReclaim(const DataToReclaim& other) = delete;
-	DataToReclaim& operator=(const DataToReclaim& other) = delete;
-	//DataToReclaim(DataToReclaim&& other) =delete;
-	//DataToReclaim& operator=(DataToReclaim&& other) = delete;
+	DataToReclaim(const DataToReclaim<Ty>& other) = delete;
+	DataToReclaim& operator=(const DataToReclaim<Ty>& other) = delete;
+	//DataToReclaim(DataToReclaim<Ty>&& other) =delete;
+	//DataToReclaim& operator=(DataToReclaim<Ty>&& other) = delete;
 
 	~DataToReclaim()
 	{
@@ -40,6 +41,7 @@ struct DataToReclaim { //Node
 
 //当有结点将要被删除的时候首先检查其他线程是否正在使用该结点
 //如果正在使用那么把结点放入到该list.
+template<typename Ty>
 class ManagerList {
 public:
 	ManagerList() = default;
@@ -49,15 +51,15 @@ public:
 		this->deleter();
 	}
 
-	ManagerList(const ManagerList& other) = delete;
-	ManagerList& operator=(const ManagerList& other) = delete;
-	//ManagerList(ManagerList&& other) = delete;
-	//ManagerList& operator=(ManagerList&& other) = delete;
+	ManagerList(const ManagerList<Ty>& other) = delete;
+	ManagerList<Ty>& operator=(const ManagerList<Ty>& other) = delete;
+	//ManagerList(ManagerList<Ty>&& other) = delete;
+	//ManagerList<Ty>& operator=(ManagerList<Ty>&& other) = delete;
+
 
 	void addNodeToList(void* data)noexcept
 	{
-		DataToReclaim* node{ new DataToReclaim{data} };
-
+		DataToReclaim<Ty>* node{ new DataToReclaim{static_cast<Ty*>(data)} };
 		node->next = (this->head).load();
 
 		//把node设为list的新head.
@@ -66,20 +68,21 @@ public:
 
 	void deleteNodesNoHzard()noexcept
 	{
-		DataToReclaim* current_node{ (this->head).exchange(nullptr) }; //std::memory_order_seq_cst
+		DataToReclaim<Ty>* current_node{ (this->head).exchange(nullptr) }; //std::memory_order_seq_cst
 
 		while (current_node != nullptr) {
-			DataToReclaim* const next{ current_node->next };
+			DataToReclaim<Ty>* const next{ current_node->next };
 
 			if (!outstandHzardPointer(next->data_ptr)) {
 				delete current_node;  //delete!
 
 			} else {
-				void* data_ptr{ current_node->data_ptr };
+				Ty* data_ptr{ current_node->data_ptr };
 				current_node->data_ptr = nullptr;
-				this->addNodeToList(data_ptr);
 
-				data_ptr = nullptr; //!
+				this->addNodeToList(static_cast<void*>(data_ptr));
+
+				data_ptr = nullptr; 
 			}
 
 		}
@@ -87,22 +90,22 @@ public:
 
 private:
 
-	void deleter()noexcept
-	{
-		DataToReclaim* temp_head{ (this->head).load() };//std::memory_oder_seq_cst
+	//void deleter()noexcept
+	//{
+	//	DataToReclaim* temp_head{ (this->head).load() };//std::memory_oder_seq_cst
 
-		while (temp_head != nullptr) { 
-			delete temp_head;
-		}
+	//	while (temp_head != nullptr) { 
+	//		delete temp_head;
+	//	}
 
-		temp_head = nullptr;
-	}
+	//	temp_head = nullptr;
+	//}
 
 
-	static std::atomic<DataToReclaim*> head;
+	static std::atomic<DataToReclaim<Ty>*> head;
 };
 
-std::atomic<DataToReclaim*> ManagerList::head{ nullptr };
-
+template<typename Ty>
+std::atomic<DataToReclaim<Ty>*> ManagerList<Ty>::head{ nullptr };
 
 #endif //RECLAIM_LIST_H

@@ -1,5 +1,6 @@
 #include "hzard_pointer.h"
 
+
 HzardPointer pointers[maxNumber]{};
 
 HPPointerOwner::HPPointerOwner()try  //try
